@@ -6,16 +6,15 @@
    git clone https://github.com/SanderBaVel/ordenarisRiskEngine.git
    ```
 
-2. importa crear bd y importar script sql: db/Dump20251005.sql
+2. importa crear bd y importar script sql: db/database.sql
    ```
-   CREATE DATABASE motor_riesgos;
-   USE motor_riesgos;
+   ejecutar los script para crear las tablas e insertar datos
 
    ```
 
 3. **Configurar credenciales en `src/main/resources/application.properties`:**
    ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/exampledatabase
+   spring.datasource.url=jdbc:mysql://localhost:3306/ordenaris_riskengine
    spring.datasource.username=root
    spring.datasource.password=
    spring.jpa.hibernate.ddl-auto=none
