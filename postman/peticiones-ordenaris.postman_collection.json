@@ -1,0 +1,184 @@
+{
+	"info": {
+		"_postman_id": "a25d878b-0bdb-4c50-96b4-bb42ec285b9c",
+		"name": "peticiones-ordenaris",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43434094"
+	},
+	"item": [
+		{
+			"name": "localhost:8080/api/riesgo/evaluar",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "    {\r\n        \"empresaId\": 1,\r\n        \"montoSolicitado\": 300000.00,\r\n        \"productoFinanciero\": \"LINEA_OPERATIVA\",\r\n        \"fechaSolicitud\": \"2025-10-04\"\r\n    }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"empresaId\": 2,\r\n    \"montoSolicitado\": 50000.00,\r\n    \"productoFinanciero\": \"LINEA_OPERATIVA\",\r\n    \"fechaSolicitud\": \"2025-10-04\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"empresaId\": 3,\r\n    \"montoSolicitado\": 2000000.00,\r\n    \"productoFinanciero\": \"CREDITO_REVOLVENTE\",\r\n    \"fechaSolicitud\": \"2025-10-04\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"empresaId\": \"4\",\r\n    \"montoSolicitado\": 250000.00,\r\n    \"productoFinanciero\": \"LINEA_OPERATIVA\",\r\n    \"fechaSolicitud\": \"2025-10-04\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"empresaId\": \"5\",\r\n    \"montoSolicitado\": 100000.00,\r\n    \"productoFinanciero\": \"CREDITO_REVOLVENTE\",\r\n    \"fechaSolicitud\": \"2025-10-04\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"empresaId\": 6,\r\n    \"montoSolicitado\": 600000.00,\r\n    \"productoFinanciero\": \"ARRENDAMIENTO_FINANCIERO\",\r\n    \"fechaSolicitud\": \"2025-10-04\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/riesgo/evaluar",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"riesgo",
+						"evaluar"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
