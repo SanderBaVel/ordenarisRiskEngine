@@ -1,10 +1,14 @@
 package com.example.ordenaris.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.example.ordenaris.exception.ResourceNotFoundException;
 import com.example.ordenaris.model.dto.ResultadoEvaluacionDTO;
 import com.example.ordenaris.model.dto.ResultadoReglaDTO;
 import com.example.ordenaris.model.dto.SolicitudEvaluacionDTO;
@@ -13,34 +17,56 @@ import com.example.ordenaris.model.entity.Empresa;
 import com.example.ordenaris.model.entity.VerificacionLegal;
 import com.example.ordenaris.model.enums.ProductoFinanciero;
 import com.example.ordenaris.model.enums.Riesgo;
+import com.example.ordenaris.model.repository.EmpresaRepository;
+import com.example.ordenaris.service.provider.IDatosContablesProvider;
+import com.example.ordenaris.service.provider.IHistorialPagosProvider;
+import com.example.ordenaris.service.provider.IVerificacionLegalProvider;
 
 @Service
 public class OrdenarisRiskEngineService {
 
-    private final DatosContablesProviderImpl datosContablesProvider;
-    private final HistorialPagosProviderImpl historialPagosProvider;
-    private final VerificacionLegalProviderImpl verificacionLegalProvider;
+    private final EmpresaRepository empresaRepository;
+    private final IDatosContablesProvider datosContablesProvider;
+    private final IHistorialPagosProvider historialPagosProvider;
+    private final IVerificacionLegalProvider verificacionLegalProvider;
 
     public OrdenarisRiskEngineService(
-    		DatosContablesProviderImpl datosContablesProvider,
-            HistorialPagosProviderImpl historialPagosProvider,
-            VerificacionLegalProviderImpl verificacionLegalProvider
+            EmpresaRepository empresaRepository,
+            IDatosContablesProvider datosContablesProvider,
+            IHistorialPagosProvider historialPagosProvider,
+            IVerificacionLegalProvider verificacionLegalProvider
     ) {
+        this.empresaRepository = empresaRepository;
         this.datosContablesProvider = datosContablesProvider;
         this.historialPagosProvider = historialPagosProvider;
         this.verificacionLegalProvider = verificacionLegalProvider;
     }
 
+    public ResultadoEvaluacionDTO evaluarRiesgo(SolicitudEvaluacionDTO solicitud) {
+        Long empresaId;
+        try {
+            empresaId = Long.valueOf(solicitud.getEmpresaId());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("El id de la empresa debe ser numérico: " + solicitud.getEmpresaId());
+        }
+
+        Empresa empresa = empresaRepository.findById(empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa no encontrada con id: " + empresaId));
+
+        return evaluarRiesgo(empresa, solicitud);
+    }
+
     public ResultadoEvaluacionDTO evaluarRiesgo(Empresa empresa, SolicitudEvaluacionDTO solicitud) {
         List<ResultadoReglaDTO> resultados = new ArrayList<>();
         Riesgo nivelRiesgo = Riesgo.BAJO;
+        LocalDate fechaCorte = solicitud.getFechaSolicitud() != null ? solicitud.getFechaSolicitud() : LocalDate.now();
 
         DatosContables contables = datosContablesProvider
                 .obtenerDatosContables(empresa)
-                .orElseThrow(() -> new RuntimeException("No se encontraron datos contables"));
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontraron datos contables para la empresa: " + empresa.getNombre()));
 
-        // deuda Activa > 90 días -> RECHAZADO
-        boolean tieneDeudaVencida = historialPagosProvider.tieneDeudaVencida(empresa.getId());
+        // Regla 1: Deuda Activa > 90 días -> RECHAZADO
+        boolean tieneDeudaVencida = historialPagosProvider.tieneDeudaVencida(empresa.getId(), fechaCorte);
 
         ResultadoReglaDTO reglaDeuda = new ResultadoReglaDTO();
         reglaDeuda.setNombreRegla("Deuda Activa");
@@ -54,34 +80,38 @@ public class OrdenarisRiskEngineService {
         }
         resultados.add(reglaDeuda);
 
-        // alta solicitud vs ventas
+        // Regla 2: Alta Solicitud vs Ventas (monto > 8x promedio mensual de ventas)
         ResultadoReglaDTO reglaAltaSolicitud = new ResultadoReglaDTO();
         reglaAltaSolicitud.setNombreRegla("Alta Solicitud vs Ventas");
-        double limite = contables.getVentasAnuales() / 12 * 8;
-        if (solicitud.getMontoSolicitado().doubleValue() > limite) {
+        BigDecimal ventasAnuales = contables.getVentasAnuales() != null ? contables.getVentasAnuales() : BigDecimal.ZERO;
+        BigDecimal promedioMensual = ventasAnuales.divide(BigDecimal.valueOf(12), 4, RoundingMode.HALF_UP);
+        BigDecimal limite = promedioMensual.multiply(BigDecimal.valueOf(8));
+
+        if (solicitud.getMontoSolicitado() != null && solicitud.getMontoSolicitado().compareTo(limite) > 0) {
             reglaAltaSolicitud.setCumple(true);
-            reglaAltaSolicitud.setDescripcionResultado("Monto solicitado > 8x promedio mensual de ventas");
+            reglaAltaSolicitud.setDescripcionResultado("Monto solicitado (" + solicitud.getMontoSolicitado() + ") supera el límite de 8x ventas mensuales (" + limite.setScale(2, RoundingMode.HALF_UP) + ")");
             nivelRiesgo = elevarRiesgo(nivelRiesgo, Riesgo.ALTO);
         } else {
             reglaAltaSolicitud.setCumple(false);
-            reglaAltaSolicitud.setDescripcionResultado("Monto dentro de límite razonable");
+            reglaAltaSolicitud.setDescripcionResultado("Monto dentro del límite razonable de ventas");
         }
         resultados.add(reglaAltaSolicitud);
 
-        //empresa nueva menro a 18 meses
+        // Regla 3: Empresa Nueva (antigüedad < 2 años / 24 meses)
         ResultadoReglaDTO reglaEmpresaNueva = new ResultadoReglaDTO();
         reglaEmpresaNueva.setNombreRegla("Empresa Nueva");
-        if (empresa.getAntiguedadAnios() < 2) {
+        long mesesAntiguedad = empresa.getAntiguedadMeses(fechaCorte);
+        if (mesesAntiguedad < 24) {
             reglaEmpresaNueva.setCumple(true);
-            reglaEmpresaNueva.setDescripcionResultado("Empresa con <18 meses de existencia");
+            reglaEmpresaNueva.setDescripcionResultado("Empresa con antigüedad menor a 2 años (" + mesesAntiguedad + " meses)");
             nivelRiesgo = elevarRiesgo(nivelRiesgo, Riesgo.MEDIO);
         } else {
             reglaEmpresaNueva.setCumple(false);
-            reglaEmpresaNueva.setDescripcionResultado("Empresa con antigüedad suficiente");
+            reglaEmpresaNueva.setDescripcionResultado("Empresa con antigüedad suficiente (" + mesesAntiguedad + " meses)");
         }
         resultados.add(reglaEmpresaNueva);
 
-        //verificacion legal
+        // Regla 4: Verificación Legal (Demandas abiertas)
         VerificacionLegal legal = verificacionLegalProvider
                 .obtenerVerificacionLegal(empresa)
                 .orElse(null);
@@ -90,7 +120,7 @@ public class OrdenarisRiskEngineService {
         reglaLegal.setNombreRegla("Demanda Legal Abierta");
         if (legal != null && Boolean.TRUE.equals(legal.getTieneDemandas())) {
             reglaLegal.setCumple(true);
-            reglaLegal.setDescripcionResultado("Empresa con juicio mercantil en curso");
+            reglaLegal.setDescripcionResultado("Empresa con juicio mercantil en curso: " + (legal.getDescripcion() != null ? legal.getDescripcion() : "Demandas activas"));
             nivelRiesgo = elevarRiesgo(nivelRiesgo, Riesgo.ALTO);
         } else {
             reglaLegal.setCumple(false);
@@ -98,59 +128,83 @@ public class OrdenarisRiskEngineService {
         }
         resultados.add(reglaLegal);
 
-        //Historial pagos
+        // Regla 5: Historial Pagos Excelente (reduce riesgo)
         boolean historialExcelente = historialPagosProvider.tieneHistorialExcelente(empresa.getId());
-
 
         ResultadoReglaDTO reglaHistorial = new ResultadoReglaDTO();
         reglaHistorial.setNombreRegla("Historial Excelente");
         if (historialExcelente) {
             reglaHistorial.setCumple(true);
-            reglaHistorial.setDescripcionResultado("Últimos pagos en tiempo y sin refinanciamiento");
+            reglaHistorial.setDescripcionResultado("Últimos 12 pagos en tiempo y forma sin refinanciamientos");
             nivelRiesgo = reducirRiesgo(nivelRiesgo);
         } else {
             reglaHistorial.setCumple(false);
-            reglaHistorial.setDescripcionResultado("Historial de pagos con retrasos");
+            reglaHistorial.setDescripcionResultado("Historial de pagos con retrasos o pagos insuficientes");
         }
         resultados.add(reglaHistorial);
 
-        //producto estricto
+        // Regla 6: Producto Estricto (arrendamiento financiero eleva a MEDIO)
         ResultadoReglaDTO reglaProducto = new ResultadoReglaDTO();
-        reglaProducto.setNombreRegla("producto estricto");
+        reglaProducto.setNombreRegla("Producto Estricto");
         if (solicitud.getProductoFinanciero() == ProductoFinanciero.ARRENDAMIENTO_FINANCIERO) {
             reglaProducto.setCumple(true);
-            reglaProducto.setDescripcionResultado("producto arrendamiento financiero => riesgo aumentado");
+            reglaProducto.setDescripcionResultado("Producto de arrendamiento financiero con mayor exigencia crediticia");
             nivelRiesgo = elevarRiesgo(nivelRiesgo, Riesgo.MEDIO);
         } else {
             reglaProducto.setCumple(false);
-            reglaProducto.setDescripcionResultado("producto sin restriccion especial");
+            reglaProducto.setDescripcionResultado("Producto sin restricción especial");
         }
         resultados.add(reglaProducto);
 
-        //resultado final
+        // Resultado Final
         ResultadoEvaluacionDTO resultado = new ResultadoEvaluacionDTO();
         resultado.setNivelRiesgoFinal(nivelRiesgo);
         resultado.setReglasEvaluadas(resultados);
-
-        // Motivo final (puede ser la primera regla determinante)
-        resultado.setMotivoFinal(resultados.stream()
-                .filter(ResultadoReglaDTO::isCumple)
-                .map(ResultadoReglaDTO::getNombreRegla)
-                .findFirst()
-                .orElse("Evaluación estándar"));
+        resultado.setMotivoFinal(determinarMotivoFinal(nivelRiesgo, resultados));
 
         return resultado;
+    }
+
+    private String determinarMotivoFinal(Riesgo nivelRiesgoFinal, List<ResultadoReglaDTO> reglas) {
+        if (nivelRiesgoFinal == Riesgo.RECHAZADO) {
+            return reglas.stream()
+                    .filter(r -> r.isCumple() && r.getNombreRegla().equalsIgnoreCase("Deuda Activa"))
+                    .map(ResultadoReglaDTO::getDescripcionResultado)
+                    .findFirst()
+                    .orElse("Solicitud rechazada por políticas de riesgo crediticio");
         }
+        if (nivelRiesgoFinal == Riesgo.ALTO) {
+            return reglas.stream()
+                    .filter(r -> r.isCumple() && (r.getNombreRegla().contains("Alta Solicitud") || r.getNombreRegla().contains("Demanda Legal")))
+                    .map(ResultadoReglaDTO::getDescripcionResultado)
+                    .findFirst()
+                    .orElse("Riesgo alto detectado en la evaluación");
+        }
+        if (nivelRiesgoFinal == Riesgo.MEDIO) {
+            return reglas.stream()
+                    .filter(r -> r.isCumple() && (r.getNombreRegla().contains("Empresa Nueva") || r.getNombreRegla().contains("Producto Estricto")))
+                    .map(ResultadoReglaDTO::getDescripcionResultado)
+                    .findFirst()
+                    .orElse("Riesgo moderado identificado");
+        }
+        return reglas.stream()
+                .filter(r -> r.isCumple() && r.getNombreRegla().equalsIgnoreCase("Historial Excelente"))
+                .map(ResultadoReglaDTO::getDescripcionResultado)
+                .findFirst()
+                .orElse("Evaluación favorable sin alertas de riesgo");
+    }
+
     private Riesgo elevarRiesgo(Riesgo actual, Riesgo sugerido) {
         if (actual == Riesgo.RECHAZADO || sugerido == Riesgo.RECHAZADO) return Riesgo.RECHAZADO;
-        if (sugerido.ordinal() > actual.ordinal()) return sugerido;
-        return actual;
+        if (actual == Riesgo.ALTO || sugerido == Riesgo.ALTO) return Riesgo.ALTO;
+        if (actual == Riesgo.MEDIO || sugerido == Riesgo.MEDIO) return Riesgo.MEDIO;
+        return Riesgo.BAJO;
     }
 
     private Riesgo reducirRiesgo(Riesgo actual) {
         if (actual == Riesgo.RECHAZADO) return actual;
         if (actual == Riesgo.ALTO) return Riesgo.MEDIO;
         if (actual == Riesgo.MEDIO) return Riesgo.BAJO;
-        return actual;
+        return Riesgo.BAJO;
     }
 }

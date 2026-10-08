@@ -48,9 +48,9 @@
 5. **Historial Excelente:** últimos 12 pagos sin retrasos → reduce riesgo
 6. **Producto Estricto:** arrendamiento financiero → aumenta riesgo
 
-## Endpoint principal
+## Endpoints principales
 
-**POST** `/api/evaluar`
+**POST** `/api/riesgo/evaluar` *(también disponible en `/api/evaluar`)*
 
 ### Ejemplo de cuerpo JSON:
 ```json

@@ -23,27 +23,28 @@ public class HistorialPagosProviderImpl implements IHistorialPagosProvider{
 
 	@Override
 	public boolean tieneDeudaVencida(Long empresaId) {
+		return tieneDeudaVencida(empresaId, LocalDate.now());
+	}
 
-        List<DetallePago> pagos = repository.findByEmpresaId(empresaId);
-
-        return pagos.stream().anyMatch(p -> p.getFechaPago() == null && ChronoUnit.DAYS.between(p.getFechaVencimiento(), LocalDate.now()) > 90);
+	@Override
+	public boolean tieneDeudaVencida(Long empresaId, LocalDate fechaCorte) {
+		if (fechaCorte == null) {
+			fechaCorte = LocalDate.now();
+		}
+		final LocalDate corte = fechaCorte;
+		List<DetallePago> pagosPendientes = repository.findByEmpresaIdAndFechaPagoIsNull(empresaId);
+		return pagosPendientes.stream()
+				.anyMatch(p -> ChronoUnit.DAYS.between(p.getFechaVencimiento(), corte) > 90);
 	}
 
 	@Override
 	public boolean tieneHistorialExcelente(Long empresaId) {
+		List<DetallePago> ultimos12 = repository.findTop12ByEmpresaIdAndFechaPagoIsNotNullOrderByFechaPagoDesc(empresaId);
+		if (ultimos12.size() < 12) {
+			return false;
+		}
 
-        List<DetallePago> pagos = repository.findByEmpresaId(empresaId);
-
-        // ordenar por fecha de pago descendente y tomar los ultimos 12 pagos completados
-        List<DetallePago> ultimos12 = pagos.stream()
-                .filter(p -> p.getFechaPago() != null)
-                .sorted(Comparator.comparing(DetallePago::getFechaPago).reversed())
-                .limit(12)
-                .toList();
-
-        if (ultimos12.size() < 12) return false;
-
-        return ultimos12.stream().allMatch(p -> !p.isRefinanciado() && !p.getFechaPago().isAfter(p.getFechaVencimiento()));
+		return ultimos12.stream().allMatch(p -> !p.isRefinanciado() && !p.getFechaPago().isAfter(p.getFechaVencimiento()));
 	}
 
 }

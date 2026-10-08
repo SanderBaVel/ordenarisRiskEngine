@@ -1,7 +1,7 @@
 package com.example.ordenaris.model.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
-
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +12,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-
 
 @Entity
 @Table(name = "datos_contables")
@@ -28,13 +27,13 @@ public class DatosContables {
     private Empresa empresa;
 
     @Column(name = "ventas_anuales")
-    private Double ventasAnuales;
+    private BigDecimal ventasAnuales;
 
     @Column(name = "deuda_activa")
-    private Double deudaActiva;
+    private BigDecimal deudaActiva;
 
     @Column(name = "flujo_efectivo")
-    private Double flujoEfectivo;
+    private BigDecimal flujoEfectivo;
 
     @Column(name = "fecha_actualizacion")
     private LocalDate fechaActualizacion;
@@ -55,27 +54,27 @@ public class DatosContables {
 		this.empresa = empresa;
 	}
 
-	public Double getVentasAnuales() {
+	public BigDecimal getVentasAnuales() {
 		return ventasAnuales;
 	}
 
-	public void setVentasAnuales(Double ventasAnuales) {
+	public void setVentasAnuales(BigDecimal ventasAnuales) {
 		this.ventasAnuales = ventasAnuales;
 	}
 
-	public Double getDeudaActiva() {
+	public BigDecimal getDeudaActiva() {
 		return deudaActiva;
 	}
 
-	public void setDeudaActiva(Double deudaActiva) {
+	public void setDeudaActiva(BigDecimal deudaActiva) {
 		this.deudaActiva = deudaActiva;
 	}
 
-	public Double getFlujoEfectivo() {
+	public BigDecimal getFlujoEfectivo() {
 		return flujoEfectivo;
 	}
 
-	public void setFlujoEfectivo(Double flujoEfectivo) {
+	public void setFlujoEfectivo(BigDecimal flujoEfectivo) {
 		this.flujoEfectivo = flujoEfectivo;
 	}
 

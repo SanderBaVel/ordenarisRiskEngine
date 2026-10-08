@@ -11,5 +11,6 @@ import com.example.ordenaris.model.entity.DetallePago;
 @Repository
 public interface DetallePagoRepository extends JpaRepository<DetallePago, Long>{
 	List<DetallePago> findByEmpresaId(Long empresaId);
-
+	List<DetallePago> findByEmpresaIdAndFechaPagoIsNull(Long empresaId);
+	List<DetallePago> findTop12ByEmpresaIdAndFechaPagoIsNotNullOrderByFechaPagoDesc(Long empresaId);
 }

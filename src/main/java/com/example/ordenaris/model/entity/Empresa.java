@@ -2,6 +2,7 @@ package com.example.ordenaris.model.entity;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -72,10 +73,21 @@ public class Empresa {
 		this.fechaRegistro = fechaRegistro;
 	}
 	
+    @Transient
+    public long getAntiguedadMeses(LocalDate fechaCorte) {
+        if (this.fechaRegistro == null || fechaCorte == null) return 0;
+        return ChronoUnit.MONTHS.between(this.fechaRegistro, fechaCorte);
+    }
+
+    @Transient
+    public int getAntiguedadAnios(LocalDate fechaCorte) {
+        if (this.fechaRegistro == null || fechaCorte == null) return 0;
+        return Period.between(this.fechaRegistro, fechaCorte).getYears();
+    }
+
     @Transient 
     public int getAntiguedadAnios() {
-        if (this.fechaRegistro == null) return 0;
-        return Period.between(this.fechaRegistro, LocalDate.now()).getYears();
+        return getAntiguedadAnios(LocalDate.now());
     }
 }
 
